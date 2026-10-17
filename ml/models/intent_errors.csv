@@ -1,0 +1,6 @@
+question,true,predicted
+how do i get to the airport,out_of_scope,faq_general
+how many teachers does the college have,employee_info,facility_info
+who built this assistant,bot_info,employee_info
+how do i contact the registrar,contact_info,faq_general
+who is the president of the united states,out_of_scope,employee_info

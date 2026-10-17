@@ -1,0 +1,16 @@
+,pred:bot_info,pred:contact_info,pred:employee_info,pred:enrollment_info,pred:facility_info,pred:faq_general,pred:goodbye,pred:greeting,pred:handbook_policy,pred:library_info,pred:office_location,pred:out_of_scope,pred:room_location,pred:school_history,pred:thanks
+true:bot_info,5,0,1,0,0,0,0,0,0,0,0,0,0,0,0
+true:contact_info,0,5,0,0,0,1,0,0,0,0,0,0,0,0,0
+true:employee_info,0,0,11,0,1,0,0,0,0,0,0,0,0,0,0
+true:enrollment_info,0,0,0,8,0,0,0,0,0,0,0,0,0,0,0
+true:facility_info,0,0,0,0,8,0,0,0,0,0,0,0,0,0,0
+true:faq_general,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0
+true:goodbye,0,0,0,0,0,0,6,0,0,0,0,0,0,0,0
+true:greeting,0,0,0,0,0,0,0,8,0,0,0,0,0,0,0
+true:handbook_policy,0,0,0,0,0,0,0,0,14,0,0,0,0,0,0
+true:library_info,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0
+true:office_location,0,0,0,0,0,0,0,0,0,0,12,0,0,0,0
+true:out_of_scope,0,0,1,0,0,1,0,0,0,0,0,12,0,0,0
+true:room_location,0,0,0,0,0,0,0,0,0,0,0,0,9,0,0
+true:school_history,0,0,0,0,0,0,0,0,0,0,0,0,0,5,0
+true:thanks,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7

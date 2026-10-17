@@ -1,0 +1,128 @@
+text,intent
+thanks po,thanks
+how do i enroll in the college,enrollment_info
+what are the library borrowing rules,library_info
+what is the mission of the college,handbook_policy
+where do i submit my documents,office_location
+goodbye po,goodbye
+is there a gym in pgpc,facility_info
+do you have thesis copies in the library,library_info
+how do i request my transcript,faq_general
+how do i get to the airport,out_of_scope
+where do i process my clearance,office_location
+what is your purpose,bot_info
+who is sir mendoza,employee_info
+why was the college created,school_history
+who teaches computer programming,employee_info
+where is the human resource office,office_location
+what equipment does the computer laboratory have,facility_info
+solve x plus 5 equals 10,out_of_scope
+write an essay about my family,out_of_scope
+ok that is all thank you bye,goodbye
+what are the grounds for dismissal,handbook_policy
+hey hello,greeting
+what are the laboratory operating hours,facility_info
+what is the scholarship requirement,handbook_policy
+how many teachers does the college have,employee_info
+tell me the history of the school,school_history
+hi smartguide,greeting
+hi good morning po,greeting
+what is the capital of japan,out_of_scope
+what is the policy for ojt,handbook_policy
+tell me what you do,bot_info
+what is the fine for overdue books,library_info
+what facilities are available,facility_info
+how many units can a student take,handbook_policy
+how much is the tuition fee,enrollment_info
+where is the gym located,room_location
+where can i find the cashier,office_location
+what is the penalty for cheating in exams,handbook_policy
+list the faculty members,employee_info
+where is room 103,room_location
+does the school have wifi,facility_info
+who is the head of the cashier,employee_info
+what is the address of the college,contact_info
+where do i go to enroll,office_location
+how many books can a student borrow,library_info
+how can i get a certificate of good moral character,faq_general
+how many classrooms are there,room_location
+which office do i go to for good moral,office_location
+how did pgpc begin,school_history
+are you a bot,bot_info
+what floor is room 205,room_location
+how are the grades computed,handbook_policy
+what are you able to do,bot_info
+how can i borrow a book from the library,library_info
+where is the office of the registrar,office_location
+what are the frequently asked questions,faq_general
+what is the best phone to buy,out_of_scope
+tell me about the facilities of the college,facility_info
+hello kumusta,greeting
+where can i find the faculty room,room_location
+recommend a good movie,out_of_scope
+how many students are enrolled in total,enrollment_info
+is there a parking space,facility_info
+is there a book about programming,library_info
+how do i replace my id,faq_general
+which program has the most enrollees,enrollment_info
+thank you very much,thanks
+who built this assistant,bot_info
+how do i find the admission office,office_location
+tell me about mr bautista,employee_info
+salamat ha,thanks
+what are the rules for shifting course,handbook_policy
+see you around,goodbye
+what is the rule about absences,handbook_policy
+what rooms are on the third floor,room_location
+hi hello there,greeting
+who is the coordinator of student affairs,employee_info
+what time does the registrar office open,office_location
+location of the cashier,office_location
+thank you that is helpful,thanks
+what offices are there in the college,office_location
+what is the phone number of pgpc,contact_info
+tell me a joke please,out_of_scope
+what courses are offered in pgpc,enrollment_info
+how do i pay the tuition fee,faq_general
+im leaving now bye,goodbye
+who is the author of this book,library_info
+where is the guidance counselor office,office_location
+how do i contact the registrar,contact_info
+paalam na po,goodbye
+hello good day,greeting
+translate this sentence to korean,out_of_scope
+what is the facebook page of the school,contact_info
+where is the school canteen,room_location
+who is the president of the united states,out_of_scope
+which building is room 101 in,room_location
+what is the weather like today,out_of_scope
+how many bscs students are there,enrollment_info
+who founded the college,school_history
+how many students are in second year,enrollment_info
+what can this chatbot answer,bot_info
+what are the requirements for graduating with honors,handbook_policy
+what is the email of the school,contact_info
+what are the core values,handbook_policy
+does pgpc have a basketball court,facility_info
+who is the faculty member named abu,employee_info
+who is the head of the registrar,employee_info
+how can i reach the school,contact_info
+what is the price of gold,out_of_scope
+good evening po,greeting
+where is the computer lab located,room_location
+what does the handbook say about attendance,handbook_policy
+okay thanks a lot,thanks
+what is the dress code policy,handbook_policy
+who won the game last night,out_of_scope
+how do i cook fried rice,out_of_scope
+what is the school logo about,school_history
+thanks smartguide,thanks
+how do i hack a facebook account,out_of_scope
+bye for now,goodbye
+who is the pgpc librarian,employee_info
+what is the position of maam gonzales,employee_info
+who is the person in charge of scholarships,employee_info
+what is the enrollment count of bpa,enrollment_info
+magandang gabi,greeting
+salamat sa tulong,thanks
+what is the policy on online classes,handbook_policy
