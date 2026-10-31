@@ -98,14 +98,31 @@ def _words(question: str) -> set[str]:
     return set(normalize_text(question).split())
 
 
+def floor_label(floor) -> str:
+    """'2' -> 'Floor 2'; '1st floor' and '2nd floor' are already words and stay as written."""
+    f = str(floor).strip()
+    return f"Floor {f}" if f.isdigit() else f
+
+
+def room_label(number, name=None) -> str:
+    """'204' -> 'Room 204'; 'LR 3' + 'Lecture Room 3' -> 'Lecture Room 3 (LR 3)'; 'Dark Room' stays 'Dark Room'."""
+    number, name = str(number or "").strip(), str(name or "").strip()
+    if number and re.fullmatch(r"\d+[A-Za-z]?", number):
+        return f"Room {number}" + (f" ({name})" if name else "")
+    if name and number and name.lower() != number.lower():
+        return f"{name} ({number})"
+    return name or number
+
+
 def _join_location(building=None, floor=None, room=None, extra=None) -> str:
+    """The order students are told: floor, name of the building, name of the room."""
     parts = []
+    if floor:
+        parts.append(floor_label(floor))
     if building:
         parts.append(f"{building}" if "building" in str(building).lower() else f"{building} building")
-    if floor:
-        parts.append(f"Floor {floor}")
     if room:
-        parts.append(f"Room {room}")
+        parts.append(f"Room {room}" if re.fullmatch(r"\d+[A-Za-z]?", str(room).strip()) else str(room))
     if extra:
         parts.append(str(extra))
     return ", ".join(parts)
@@ -164,7 +181,7 @@ def _write_office(h: Hit, q: set[str], intent: str) -> tuple[str, bool]:
     # Decided by the question's own words (the intent can say "office_location" for any question about an office).
     want_hours = bool(q & WANT_HOURS) and not (q & WANT_LOCATION) and not (q & WANT_CONTACT)
     lines, missing = [], False
-    loc_line = f"The {name} is located at {loc}." if loc else ""
+    loc_line = f"The {name} is located at: {loc}." if loc else ""
     if want_hours:
         # Offices have no opening-hours field yet, so say so instead of answering a different question.
         lines.append(f"I don't have the office hours of the {name} yet.")
@@ -192,6 +209,10 @@ def _write_office(h: Hit, q: set[str], intent: str) -> tuple[str, bool]:
             missing = True
     if about and (missing or not (want_loc or want_contact)):
         lines.append(about if about.endswith((".", ")")) else about + ".")
+    if loc_line and want_loc and f.get("shares"):
+        lines.append(f["shares"])                                   # from the floor plan: who sits in the same room
+    if loc_line and want_loc and not want_contact and not want_hours:
+        missing = True        # the location was answered, so no "details missing" note for the other fields
     return " ".join(l for l in lines if l), missing
 
 
@@ -233,14 +254,13 @@ def _write_facility(h: Hit, q: set[str], intent: str) -> tuple[str, bool]:
 
 def _write_room(h: Hit, q: set[str], intent: str) -> tuple[str, bool]:
     f = h.fields
-    label = f"Room {f['room_number']}" + (f" ({f['room_name']})" if f.get("room_name") else "")
-    building = _join_location(f.get("building"))
-    floor = f"Floor {f['floor']}" if f.get("floor") else ""
+    label = room_label(f["room_number"], f.get("room_name"))
+    where = _join_location(f.get("building"), f.get("floor"))
     lines, missing = [], False
-    if building:
-        lines.append(f"{label} is in the {building}" + (f", {floor}" if floor else "") + ".")
-    elif floor:
-        lines.append(f"{label} is on {floor}. Its building has not been added yet.")
+    if f.get("building") and f.get("floor"):
+        lines.append(f"{label} is located at: {where}.")
+    elif where:
+        lines.append(f"{label} is located at: {where}. The " + ("floor" if f.get("building") else "building") + " has not been added yet.")
         missing = True
     else:
         lines.append(f"I have a record of {label}, but its building and floor have not been added yet.")
@@ -650,6 +670,231 @@ def detail_answer(db: Session, question: str, intent, result: RetrievalResult) -
 _QUICK_LINKS_BROKEN = False
 
 
+def _compact(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", normalize_text(text or ""))
+
+
+_FLOOR_WORDS = {"ground": "1st floor", "1st": "1st floor", "first": "1st floor", "1": "1st floor",
+                "2nd": "2nd floor", "second": "2nd floor", "2": "2nd floor"}
+_LOCATION_TRIGGERS = {"where", "find", "located", "location", "saan", "nasaan", "locate"}
+_NAME_STOP = {"where", "is", "are", "the", "of", "can", "i", "find", "located", "location", "office", "room", "mr", "mrs",
+              "ms", "dr", "atty", "sir", "maam", "ma", "am", "a", "an", "at", "in", "for", "to", "pgpc", "college", "does",
+              "work", "works", "working", "stay", "sit", "saan", "nasaan", "si", "ni", "ang", "po", "what", "floor", "on"}
+
+
+def _person_place(e) -> str:
+    o = e.office
+    if not o:
+        return ""
+    loc = _join_location(o.building, o.floor, o.room_number)
+    return f"{o.name}" + (f", located at: {loc}" if loc else "")
+
+
+def _employees_named(employees, words: set[str]):
+    """Employees whose last name and at least one more name word are in the question ('nicky solis', 'solis nicky')."""
+    from app.utils.text_cleaner import strip_accents
+    out = []
+    for e in employees:
+        last = set(strip_accents(e.last_name or "").lower().split())
+        first = set(strip_accents(e.first_name or "").lower().replace(".", "").split())
+        if last and last <= words and first & words:
+            out.append(e)
+    return out
+
+
+_HONORIFICS = {"dr", "mr", "mrs", "ms", "atty", "attorney", "engr", "sir", "maam", "madam", "prof", "doc", "ph", "d", "lpt", "mpa"}
+_ASK_PREFIX = re.compile(r"^(?:who is|who s|whos|who are|sino si|sino po si|sino|tell me about|info on|information about|about|details of|details about|show me|find)\s+")
+
+
+def _name_lookup(db: Session, q: str):
+    """'solis', 'dr vinas', 'who is diaz': a bare person name. One match gives the person's title and office; several
+    matches (two Diaz, two Abu) are listed with their titles so the student can pick."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+    from app.models import Employee
+    from app.services import people
+    from app.utils.text_cleaner import strip_accents
+    body = _ASK_PREFIX.sub("", q.strip())
+    tokens = [strip_accents(w).lower() for w in body.split() if strip_accents(w).lower() not in _HONORIFICS]
+    if not tokens or len(tokens) > 4 or any(len(w) < 3 for w in tokens):
+        return None
+    employees = list(db.scalars(select(Employee).options(joinedload(Employee.position), joinedload(Employee.office))))
+    def name_tokens(e):
+        parts = (e.first_name, e.last_name) if len(tokens) == 1 else (e.first_name, e.middle_name, e.last_name)
+        return set(strip_accents(" ".join(x for x in parts if x)).lower().replace(".", "").split())
+    hits = [e for e in employees if set(tokens) <= name_tokens(e)]
+    if not hits:
+        return None
+    if len(hits) == 1:
+        e = hits[0]
+        if e.position and people._real_title(e):
+            return people.write_titled([e], people.RoleQuery(role=[], qualifier=[], plural=False, count=False, text="",
+                                                             contact="")), True
+        return None                                      # no title on file: the normal person answer says so
+    lines = ["I found more than one person with that name:"]
+    for e in hits[:8]:
+        extra = ", ".join(x for x in (e.position.name if e.position else None, e.office.name if e.office else None) if x)
+        lines.append(f"- {people._person_name(e)}" + (f" ({extra})" if extra else " (details not added yet)"))
+    lines.append("Ask about one of them by full name for more details.")
+    return "\n".join(lines) + "\n\nSource: PGPC employee records", True
+
+
+def _campus_people_lookup(db: Session, english: str):
+    """'Where is Nicky Solis / the librarian / the dean of CCBA', 'who works in the registrar office' and
+    'what is on the 2nd floor', answered from the personnel list and the building plans."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+    from app.models import Employee, Office, Room
+    from app.services import people
+    q = normalize_text(english)
+    words = set(q.split())
+    named_card = _name_lookup(db, q)
+    if named_card is not None:
+        return named_card
+    where = bool(words & _LOCATION_TRIGGERS) or bool(re.search(r"\bwhat floor\b", q))
+    works = bool(re.search(r"\bwho (?:works?|is|are|stays?|sits?)\s+(?:in|at|inside)\b", q))
+    floors = [_FLOOR_WORDS[w] for w in q.split() if w in _FLOOR_WORDS]
+    on_floor = bool(re.search(r"\b(?:what|which|list|show)\b.*\b(?:on|in)\b.*\bfloor\b|\bfloor\b.*\b(?:rooms?|offices?)\b", q)) and floors
+    if not (where or works or on_floor):
+        return None
+    employees = list(db.scalars(select(Employee).options(joinedload(Employee.position), joinedload(Employee.office))))
+    # 1) what is on a floor
+    if on_floor and not where:
+        floor = floors[0]
+        by_building: dict[str, list[str]] = {}
+        for o in db.scalars(select(Office)):
+            if o.floor == floor and o.building:
+                by_building.setdefault(o.building, []).append(o.name)
+        for r in db.scalars(select(Room)):
+            if r.floor == floor and r.building and (r.room_type or "") not in {"Comfort room", "Storage"}:
+                by_building.setdefault(r.building, []).append(room_label(r.room_number, r.room_name))
+        if by_building:
+            lines = [f"This is what I have on the {floor}:"]
+            for b, items in by_building.items():
+                lines.append(f"{b}:")
+                lines += [f"- {i}" for i in items]
+            return "\n".join(lines) + "\n\nSource: PGPC room and office records", True
+        return None
+    # 2) who works in an office
+    if works:
+        offices = list(db.scalars(select(Office)))
+        qset = words - _NAME_STOP - {"who", "works", "work", "stays", "sits", "inside"}
+        if "hr" in qset:
+            qset |= {"human", "resources"}
+        if "cashier" in qset:
+            qset |= {"cashiers"}
+        best = None
+        for o in offices:
+            ow = {w.rstrip("s") if w.endswith("'s") else w for w in normalize_text(o.name).split()
+                  if w not in _NAME_STOP and w != "hr"}
+            if ow and ow <= qset and (best is None or len(ow) > best[0]):
+                best = (len(ow), o)
+        if best:
+            o = best[1]
+            staff = [e for e in employees if e.office_id == o.id]
+            if staff:
+                lines = [f"These are the people I have in the {o.name}:"]
+                lines += [f"- {people._person_name(e)}: {e.position.name if e.position else 'staff'}" for e in staff]
+                return "\n".join(lines) + "\n\nSource: PGPC employee records", True
+            return (f"I don't have anyone on file for the {o.name} yet.\n\nSource: PGPC employee records"), False
+        return None
+    # 3) where is a person / a job title
+    if not where:
+        return None
+    named = _employees_named(employees, words)
+    held = []
+    if len(named) == 1:
+        held = named
+    elif not named:
+        if words & {"office", "cashier", "accounting", "admission", "clinic", "osa", "csg", "mis"}:
+            return None                                  # "where is the registrar office" is an office question
+        rest = " ".join(w for w in q.split() if w not in _LOCATION_TRIGGERS and w not in {"is", "are", "can", "i", "what", "floor", "does", "work", "works"})
+        pq = people.parse_role_question("who is " + rest)
+        if pq is not None:
+            extra = [w for w in pq.qualifier if w not in people.FILLER and w not in people.PGPC_WORDS]
+            roles = pq.role + extra
+            held = [e for e in people.employees_for_role(employees, roles)
+                    if people._real_title(e) and people._is_head_title(e, pq.role)]
+    if not held and not named:                       # "where is the guidance counselor": only an assistant is on file
+        pq2 = people.parse_role_question("who is " + " ".join(w for w in q.split() if w not in _LOCATION_TRIGGERS and w not in {"is", "are", "can", "i", "what", "floor"}))
+        if pq2 is not None:
+            held = [e for e in people.employees_for_role(employees, pq2.role + [w for w in pq2.qualifier if w not in people.FILLER and w not in people.PGPC_WORDS])
+                    if people._real_title(e)]
+    if not held:
+        return None
+    lines = []
+    for e in held[:5]:
+        name = people._person_name(e)
+        title = e.position.name if e.position else None
+        place = _person_place(e)
+        if place:
+            lines.append(f"{name}" + (f" ({title})" if title else "") + f" is at the {place}.")
+        else:
+            lines.append(f"{name}" + (f" ({title})" if title else "") + " is on the PGPC staff list, but I don't have the office location on file yet.")
+    return "\n".join(lines) + "\n\nSource: PGPC employee records", True
+
+
+def _campus_lookup(db: Session, english: str):
+    """Exact room (LR 3, Com Lab 2, Crime Lab 1...) and 'rooms in <building>' questions, answered from the floor plans."""
+    from sqlalchemy import select
+    from app.models import Room, Office
+    q = normalize_text(english)
+    words = set(q.split())
+    if not (words & {"where", "location", "located", "find", "locate", "rooms", "room", "lab", "laboratory", "lr", "saan", "nasaan", "what", "which", "list"}):
+        return None
+    rooms = list(db.scalars(select(Room)))
+    if not rooms:
+        return None
+    q = q.replace("main building", "white building").replace("building 2", "yellow building").replace("second building", "yellow building")
+    words = set(q.split())
+    qc = _compact(q)
+    # 1) "what rooms/offices are in building 2 / main building"
+    if words & {"rooms", "offices", "room", "office"} and words & {"in", "at", "inside", "sa", "list", "all"}:
+        for b in sorted({r.building for r in rooms if r.building}, key=len, reverse=True):
+            if _compact(b) in qc and not any(_compact(a) in qc for r in rooms for a in (r.room_number, r.room_name) if a):
+                rs = [r for r in rooms if r.building == b]
+                os_ = [o for o in db.scalars(select(Office)) if o.building == b]
+                lines = [f"These are the rooms and offices I have in {'' if b.lower().startswith('building') else 'the '}{b}:"]
+                for o in os_:
+                    lines.append(f"- {o.name}" + (f" ({floor_label(o.floor)})" if o.floor else ""))
+                for r in rs:
+                    lines.append(f"- {room_label(r.room_number, r.room_name)}" + (f" ({floor_label(r.floor)})" if r.floor else ""))
+                return "\n".join(lines) + "\n\nSource: PGPC room and office records", True
+    # 1b) "where is the comfort room / CR / restroom": there are several, so list them all with their floors
+    if words & {"cr", "comfort", "restroom", "toilet", "bathroom", "banyo"} and not (words & {"male", "female", "pwd", "men", "women"}):
+        crs = [r for r in rooms if (r.room_type or "").lower() == "comfort room"]
+        if crs:
+            lines = ["There is more than one comfort room (CR) on campus:"]
+            for r in crs:
+                lines.append(f"- {r.room_name or r.room_number}: {_join_location(r.building, r.floor)}")
+            return "\n".join(lines) + "\n\nSource: PGPC room records", True
+    # 2) one specific room: its number/name appears in the question (word-boundary aware)
+    def canon(t: str) -> str:
+        t = " " + normalize_text(t or "") + " "
+        for old, new_ in ((" lecture room ", " lr "), (" computer laboratory ", " com lab "), (" computer lab ", " com lab "),
+                          (" crime laboratory ", " crime lab "), (" criminology lab ", " crime lab "), (" room ", " lr ")):
+            t = t.replace(old, new_)
+        return t
+    qn = canon(q)
+    best, best_len = [], 0
+    for r in rooms:
+        for a_ in (r.room_number, r.room_name):
+            c = canon(a_).strip()
+            if len(c.replace(" ", "")) < 3 or f" {c} " not in qn:
+                continue
+            if len(c) > best_len:
+                best, best_len = [r], len(c)
+            elif len(c) == best_len and r not in best:
+                best.append(r)
+    if len(best) == 1:
+        r = best[0]
+        f = {"room_number": r.room_number, "room_name": r.room_name, "building": r.building, "floor": r.floor,
+             "room_type": r.room_type, "facility": r.facility.name if r.facility else None}
+        text, missing = _write_room(Hit(source_type="room", title="", fields=f, score=1.0) if False else type("H", (), {"fields": f})(), set(), "")
+        return text + "\n\nSource: PGPC room records", not missing
+    return None
+
+
 def _school_facts(db: Session, english: str):
     """(text, found) for 'how did PGPC begin' and 'where is PGPC located', or None."""
     from app.services import identity
@@ -720,6 +965,10 @@ def _answer_one(db: Session, question: str, classifier, top_k: int) -> "Answer":
                         found=True, confidence="high", pgpc_related=True,
                         sources=[{"type": "handbook", "id": None, "title": "Vision and Mission (Chapter I)",
                                   "source": "PGPC Student Handbook"}])
+    elif (campus := (_campus_people_lookup(db, english) or _campus_lookup(db, english))) is not None:
+        answer = Answer(text=campus[0], kind="answer", intent="room_info" if False else intent.intent,
+                        intent_confidence=float(intent.confidence), found=campus[1], confidence="high", pgpc_related=True,
+                        sources=[{"type": "room", "id": None, "title": "PGPC room records", "source": "PGPC room records"}])
     elif (facts := _school_facts(db, english)) is not None:
         answer = Answer(text=facts[0], kind="answer", intent="school_history", intent_confidence=float(intent.confidence),
                         found=facts[1], confidence="high" if facts[1] else "none", pgpc_related=True,
@@ -758,9 +1007,14 @@ def generate_answer(db: Session, question: str, top_k: int = 5) -> Answer:
     from app.services.query_rewrite import split_questions
     question = clean_user_input(question)[: get_settings().max_question_chars]
     classifier = get_intent_classifier()
-    subs = split_questions(question)
+    subs = []
+    for sq in split_questions(question):               # the same question typed again and again is answered once
+        key = normalize_text(sq)
+        if key and key not in {normalize_text(x) for x in subs}:
+            subs.append(sq)
+    subs = subs[:5] or [question]                       # and a message is answered for at most 5 different questions
     if len(subs) == 1:
-        return _answer_one(db, question, classifier, top_k)
+        return _answer_one(db, subs[0] if len(subs) < len(split_questions(question)) else question, classifier, top_k)
     return combine_answers([(q, _answer_one(db, q, classifier, top_k)) for q in subs])
 
 

@@ -43,7 +43,7 @@ SLANG: dict[str, str] = {
     "cn": "can", "cud": "could", "shud": "should", "wud": "would", "wanna": "want to", "gonna": "going to",
     "gotta": "got to", "lemme": "let me", "idk": "i dont know", "rn": "right now", "bcoz": "because",
     "bc": "because", "cuz": "because", "coz": "because", "sched": "schedule", "req": "requirement",
-    "reqs": "requirements", "reqt": "requirement", "reqts": "requirements", "hrs": "hours", "hr": "hour",
+    "reqs": "requirements", "reqt": "requirement", "reqts": "requirements", "hrs": "hours", "gebuc": "sebuc", "manguray": "mangurali", "haziel": "hazel", "nery": "nedy",
     "dept": "department", "prof": "professor", "profs": "professors", "nid": "need",
     "gud": "good", "tym": "time", "skul": "school", "cp": "cellphone", "celfone": "cellphone",
     "cellfone": "cellphone", "selpon": "cellphone", "cellphones": "cellphone", "info": "information",
@@ -267,7 +267,7 @@ def fixed_words() -> set[str]:
     base |= CONTRACTIONS
     base |= {"pgpc", "osa", "saco", "nstp", "ojt", "csg", "gwa", "drp", "inc", "cosc", "bscs", "bpa", "bsma", "bscrim",
              "wifi", "cpe", "taga", "pgpcian", "garcia", "batangas", "sangguniang", "bayan", "padre", "vpaa",
-             "kuya", "ate", "opac", "cr", "id", "ids", "it", "ict", "lpt", "hon", "atty", "engr", "dr", "mr", "ms", "mrs"}
+             "kuya", "ate", "opac", "crim", "admin", "vpaf", "oic", "ccba", "mis", "deptac", "beced", "cr", "id", "ids", "it", "ict", "lpt", "hon", "atty", "engr", "dr", "mr", "ms", "mrs"}
     return base
 
 
@@ -357,7 +357,9 @@ def read_input(question: str, vocab: Vocabulary | None = None) -> ReadResult:
         joined, phrase_changed = apply_phrases(joined)
         from app.services.query_rewrite import FILIPINO_TO_ENGLISH, FILIPINO_FILLER
         words = joined.split()
-        filipino = phrase_changed or any(w in FILIPINO_TO_ENGLISH or w in EXTRA_FILIPINO for w in words)
+        def _fil(w):                                           # a word that maps to itself ("librarian") is English
+            return (w in FILIPINO_TO_ENGLISH and FILIPINO_TO_ENGLISH[w] != w) or (w in EXTRA_FILIPINO and EXTRA_FILIPINO[w] != w)
+        filipino = phrase_changed or any(_fil(w) for w in words)
         if filipino:
             tr = []
             for w in words:
@@ -380,8 +382,7 @@ def read_input(question: str, vocab: Vocabulary | None = None) -> ReadResult:
             return ReadResult(original, result or original)    # quiet spelling variant ("cell phone" -> "cellphone")
         particles = {"po", "ho", "ba", "naman", "lang", "nga", "daw", "raw", "kasi", "ang", "ng", "mga", "yung", "yong",
                      "ung", "sa", "na", "mag", "nag", "pag", "mang", "ko", "mo", "namin", "natin", "ninyo", "nyo"}
-        known_fil = set(FILIPINO_TO_ENGLISH) | set(EXTRA_FILIPINO)
-        content_filipino = any(w in known_fil and w not in particles for w in normalize_text(original).split())
+        content_filipino = any(_fil(w) and w not in particles for w in normalize_text(original).split())
         return ReadResult(original, result or original, display, corrections, filipino,
                           reply_in_filipino=phrase_changed or content_filipino)
     except Exception:                                    # a reader must never break a question

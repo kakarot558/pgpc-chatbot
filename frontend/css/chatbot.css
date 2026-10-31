@@ -39,8 +39,8 @@
 
 /* input */
 .sg-input-row { display: flex; gap: .6rem; padding: .85rem 1rem; border-top: 1px solid var(--sg-line); background: #fbfcfe; }
-.sg-input-row .form-control { border-radius: 999px; padding: .65rem 1.1rem; background: #fff; }
-.sg-input-row .sg-send { border-radius: 999px; padding: .55rem 1.4rem; }
+.sg-input-row .form-control { flex: 1 1 0; min-width: 0; width: auto; box-sizing: border-box; border-radius: 999px; padding: .65rem 1.1rem; background: #fff; }
+.sg-input-row .sg-send { flex: 0 0 auto; border-radius: 999px; padding: .55rem 1.4rem; }
 .sg-send:disabled { opacity: .5; }
 .sg-notice { font-size: .82rem; padding: 0 1.2rem .7rem; color: var(--sg-muted); }
 .sg-notice:empty { display: none; }

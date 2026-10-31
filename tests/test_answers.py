@@ -69,7 +69,7 @@ def test_office_location_answer_with_source():
     a = compose_answer("Where is the registrar office?", intent("office_location"),
                        result(hit("office", "Registrar Office", OFFICE)))
     assert a.kind == "answer" and a.found and a.pgpc_related is True and not a.incomplete
-    assert "The Registrar Office is located at Main Building, Floor 1, Room 102." in a.text
+    assert "The Registrar Office is located at: Floor 1, Main Building, Room 102." in a.text
     assert "043-111-2222" in a.text and a.text.endswith("Source: PGPC records")
     assert a.sources == [{"type": "office", "id": 1, "title": "Registrar Office", "source": "PGPC records"}]
 
@@ -134,7 +134,7 @@ def test_room_answer():
     f = {"room_number": "201", "room_name": None, "building": "Annex", "floor": "2", "room_type": "Lecture room",
          "facility": None}
     a = compose_answer("where is room 201", intent("room_location"), result(hit("room", "Room 201", f)))
-    assert "Room 201 is in the Annex building, Floor 2." in a.text and "Type: Lecture room." in a.text
+    assert "Room 201 is located at: Floor 2, Annex building." in a.text and "Type: Lecture room." in a.text
 
 
 # ------------------------------------------------------------------ employees

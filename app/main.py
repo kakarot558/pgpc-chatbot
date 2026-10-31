@@ -33,6 +33,22 @@ def update_old_database() -> None:
         logging.getLogger("pgpc.schema").exception("could not update the database; run: alembic upgrade head")
 
 
+@app.on_event("startup")
+def load_campus_data() -> None:
+    """Personnel titles, office locations and rooms from the campus plans. Idempotent: fills empty fields only,
+    so it never replaces what the admin typed, and the president/office answers are right without a manual step."""
+    try:
+        from app.database.database import SessionLocal
+        from app.database.campus_data import apply
+        with SessionLocal() as db:
+            apply(db)
+            db.commit()
+        from app.services import retrieval
+        retrieval.clear_index_cache()
+    except Exception:
+        logging.getLogger("pgpc.campus").exception("could not load the campus data; run: python -m app.database.apply_campus_data")
+
+
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(admin.router)

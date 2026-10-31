@@ -32,7 +32,7 @@ FILLER = {
     "know", "want", "to", "i", "we", "us", "and", "or", "currently", "current", "now", "today", "right", "who", "whos",
     "whom", "what", "which", "that", "this", "do", "does", "have", "has", "there", "about", "info", "information",
     "details", "detail", "member", "members", "people", "person", "persons", "worker", "workers", "staff", "staffs",
-    "employee", "employees", "personnel", "mga", "ang", "ng", "sino",
+    "employee", "employees", "personnel", "mga", "ang", "ng", "sino", "oic", "acting",
 }
 PGPC_WORDS = {"pgpc", "college", "school", "campus", "padre", "garcia", "polytechnic", "our", "here", "this", "your"}
 # Words that, together with the filler, make a question a *role* question (not a person's name).
@@ -46,9 +46,14 @@ ROLE_VOCAB = {
     "accountant", "bookkeeper", "electrician", "plumber", "gardener", "canteen", "clinic", "library", "it", "office",
     "municipal", "academic", "affairs", "vpaa", "osa", "chief", "supervisor", "marshal", "marshals", "kuya", "ate",
     "non", "teaching", "secretary", "vp", "vpaa", "finance", "administration",
+    "program", "chairs", "assistant", "vpaf", "hr", "accounting", "staff", "research", "extension", "criminology",
+    "ccba", "bscs", "bsma", "bpa", "crim", "reasearch", "nurse", "counselor", "cashiers", "librarians", "deans",
 }
 # Student words -> the words used in the records.
 ALIASES: dict[str, list[str]] = {
+    "admin": ["admin", "administration"],
+    "crim": ["crim", "criminology"],
+    "ccba": ["ccba"],
     "utility": ["utility", "janitor", "janitress", "maintenance", "cleaner", "custodian", "utilityman"],
     "janitor": ["utility", "janitor", "janitress", "maintenance", "cleaner", "custodian"],
     "janitress": ["utility", "janitor", "janitress", "maintenance", "cleaner"],
@@ -473,7 +478,60 @@ def write_employees(found: list, query: RoleQuery) -> str:
     return "\n".join(lines)
 
 
+GROUP_TITLES = {"Faculty", "Administrative Personnel"}
+SUBORDINATE = {"secretary", "assistant", "deputy", "staff"}
+
+
+def _real_title(e) -> bool:
+    """A job title the admin or the personnel list gave, not a roster group heading."""
+    return bool(e.position and e.position.name not in GROUP_TITLES)
+
+
+def _is_head_title(e, query_role: list[str]) -> bool:
+    """'Secretary of the College President' is not the president, 'Assistant Librarian' is not the librarian, and
+    'Vice President for ...' is not the president."""
+    first = (_fold(e.position.name).split() or [""])[0]
+    if first in SUBORDINATE and first not in {_stem(w) for w in query_role} and first not in query_role:
+        return False
+    if ({"president"} | HEAD_WORDS) & {_stem(w) for w in query_role} and "vice" not in query_role:
+        return role_matches(e.position.name, query_role)
+    return True
+
+
+def floor_text(floor) -> str:
+    f = str(floor or "").strip()
+    return f"Floor {f}" if f.isdigit() else f
+
+
+def room_text(room) -> str:
+    r = str(room or "").strip()
+    return f"Room {r}" if re.fullmatch(r"\d+[A-Za-z]?", r) else r
+
+
+def write_titled(found: list, query: RoleQuery) -> str:
+    def where(e) -> str:
+        if not e.office:
+            return ""
+        loc = ", ".join(x for x in (floor_text(e.office.floor), e.office.building, room_text(e.office.room_number)) if x)
+        return e.office.name + (f", located at: {loc}" if loc else "")
+    if len(found) == 1:
+        e = found[0]
+        title = e.position.name
+        text = f"{_person_name(e)} is the {title}" + ("" if " of " in title or " for " in title else " of PGPC") + "."
+        if where(e):
+            text += f"\nOffice: {where(e)}."
+        return text + "\n\nSource: PGPC employee records"
+    lines = [f'These are the people I have for "{query.text}":']
+    for e in found[:MAX_LIST]:
+        lines.append(f"- {_person_name(e)}: {e.position.name}")
+    lines.append("Ask about one of them by name for more details.")
+    return "\n".join(lines) + "\n\nSource: PGPC employee records"
+
+
 def people_answer(db, question: str, intent_name: str | None = None) -> PeopleResult | None:
+    question = re.sub(r"\b(?:new|current|present|latest|existing|newest|bagong)\s+(?=(?:college\s+)?president\b)", "", question or "", flags=re.I)
+    question = re.sub(r"\bwho\s+(?:heads|leads|runs|manages)\s+(?:the\s+)?(?!pgpc|school|college)", "head of ", question or "", flags=re.I)
+    question = re.sub(r"\bhead of (?:the )?(?:pgpc|school|college|campus|polytechnic college)\b", "president", question or "", flags=re.I)
     """None means: this is not a role question, let the normal answer path handle it."""
     from sqlalchemy import select
     from sqlalchemy.orm import joinedload
@@ -484,12 +542,23 @@ def people_answer(db, question: str, intent_name: str | None = None) -> PeopleRe
         return None
     offices = list(db.scalars(select(Office)))
     office_words = {w for o in offices for w in _fold(o.name).split()} - FILLER - {"office", "of"}
-    if not is_pgpc_qualifier(q.qualifier, office_words):
-        return None                                             # "president of the united states"
-    if not looks_like_role(q.role):
+    employees = list(db.scalars(select(Employee).options(joinedload(Employee.position), joinedload(Employee.office))))
+    extra = [w for w in q.qualifier if w not in FILLER and w not in PGPC_WORDS]
+    base = [] if (set(q.role) <= {"head", "heads", "chief"}) else q.role          # "head of the registrar office"
+    extra_t = [{"library": "librarian"}.get(w, w) for w in extra if w not in {"office", "department", "unit"}] \
+        if not base else extra
+    titled = ([e for e in employees_for_role(employees, base + extra_t) if _real_title(e)]
+              if extra_t else [])
+    extra = extra_t
+    if titled:
+        # "program chair of BSCS", "director of research and extension": the qualifier is part of a job title on file
+        q = RoleQuery(role=base + extra, qualifier=[], plural=q.plural, count=q.count, text=" ".join(base + extra),
+                      contact=q.contact)
+    elif not is_pgpc_qualifier(q.qualifier, office_words):
+        return None                                             # "president of the united states" is somebody else's question
+    elif not looks_like_role(q.role):
         return None                                             # a person's name: the normal path handles it
 
-    employees = list(db.scalars(select(Employee).options(joinedload(Employee.position), joinedload(Employee.office))))
     counts: dict[str, int] = {}
     for e in employees:
         if e.position:
@@ -520,6 +589,22 @@ def people_answer(db, question: str, intent_name: str | None = None) -> PeopleRe
             f"I don't have a record of who heads the {shown} yet. You can ask me where it is, or check with the "
             f"concerned PGPC office.", [], found=False)
 
+    # 1c) a job title in the employee records ("OIC College President", "Librarian"): the school's own list comes first
+    held = [e for e in employees_for_role(employees, q.role) if _real_title(e) and _is_head_title(e, q.role)]
+    if held and not q.count and not q.contact:
+        return PeopleResult(write_titled(held, q), [dict(emp_source, id=e.id, title=_person_name(e)) for e in held[:5]],
+                            incomplete=any(not e.office_id for e in held))
+    if held and q.contact and len(held) == 1:               # "email of the president": the person who holds the title now
+        e = held[0]
+        who = f"{_person_name(e)} ({e.position.name})"
+        wants_email = "email" in q.contact
+        value = e.email if wants_email else e.contact_number
+        what = "email" if wants_email else "contact number"
+        text = (f"The {what} of {who} is {value}." if value
+                else f"I don't have {'an email address' if wants_email else 'a contact number'} for {who} on file yet. "
+                     "Please check with the concerned PGPC office.")
+        return PeopleResult(text, [dict(emp_source, id=e.id, title=_person_name(e))], found=bool(value))
+
     # 2) officials the handbook names
     sections = list(db.scalars(select(HandbookSection)))
     officials: list[Official] = []
@@ -537,6 +622,12 @@ def people_answer(db, question: str, intent_name: str | None = None) -> PeopleRe
                 seen.add(off.key)
                 officials.append(off)
     matches = find_officials(officials, q.role)
+    by_key = {(strip_accents(e.first_name or "").lower().split(" ")[0] if e.first_name else "",
+               strip_accents(e.last_name or "").lower()): e for e in employees}
+    # the roster (current titles) beats the handbook: drop an official whose roster title is a different job
+    matches = [m for m in matches
+               if not (by_key.get(m[0].key) is not None and _real_title(by_key[m[0].key])
+                       and not _is_head_title(by_key[m[0].key], q.role))]
     if matches and q.contact and len(matches) == 1:
         off = matches[0][0]
         emp = next((e for e in employees if (strip_accents(e.first_name or "").lower().split(" ")[0] if e.first_name

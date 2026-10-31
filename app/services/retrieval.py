@@ -242,15 +242,19 @@ class Indexer:
     def offices(self, db: Session) -> list[Record]:
         out = []
         for o in db.scalars(select(Office)):
-            desc, bad = clean_value(o.description)
-            where = _join(f"Building {o.building}" if o.building else "", f"Floor {o.floor}" if o.floor else "",
-                          f"Room {o.room_number}" if o.room_number else "")
-            content = _labelled([("Office", o.name), ("Location", where.replace(" Floor", ", Floor").replace(" Room", ", Room")),
+            desc, bad = clean_value(re.sub(r"\s*It shares a room with [^.\[]+\.", "", o.description or ""))
+            where = ", ".join(x for x in (
+                (f"Floor {o.floor}" if str(o.floor).strip().isdigit() else str(o.floor)) if o.floor else "",
+                (o.building if "building" in (o.building or "").lower() else f"Building {o.building}") if o.building else "",
+                (f"Room {o.room_number}" if re.fullmatch(r"\d+[A-Za-z]?", str(o.room_number or "").strip()) else str(o.room_number or ""))
+                if o.room_number else "") if x)
+            content = _labelled([("Office", o.name), ("Location", where),
                                  ("Contact number", o.contact_number), ("Email", o.email), ("About", desc)])
             out.append(Record("office", o.id, o.name, content,
-                              self.toks(o.name, 3) + self.toks(_join(desc, where)), "PGPC office records",
+                              self.toks(o.name, 3) + self.toks(_join(desc, re.sub(r", (?!Room \d)[^,]*$", "", where) if o.room_number and not str(o.room_number).strip().isdigit() else where)), "PGPC office records",
                               {"name": o.name, "building": o.building, "floor": o.floor, "room_number": o.room_number,
-                               "contact_number": o.contact_number, "email": o.email, "about": desc or None},
+                               "contact_number": o.contact_number, "email": o.email, "about": desc or None,
+                               "shares": (re.search(r"It shares a room with [^.\[]+\.", o.description or "") or [None])[0]},
                               bad or not (o.building or o.floor or o.room_number)))
         return out
 
@@ -259,7 +263,8 @@ class Indexer:
         for r in db.scalars(select(Room)):
             desc, bad = clean_value(r.description)
             facility = r.facility.name if r.facility else ""
-            title = _join(f"Room {r.room_number}", f"({r.room_name})" if r.room_name else "")
+            from app.services.answer_generator import room_label
+            title = room_label(r.room_number, r.room_name)
             content = _labelled([("Room", title.replace("Room ", "", 1)), ("Building", r.building), ("Floor", r.floor),
                                  ("Type", r.room_type), ("Facility", facility), ("About", desc)])
             out.append(Record("room", r.id, title, content,
