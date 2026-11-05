@@ -325,6 +325,8 @@ def main() -> None:
         note = seed_enrollment_note(db)
         from app.database.campus_data import apply as apply_campus_data
         campus = apply_campus_data(db)                     # job titles, office locations and rooms from the floor plans
+        from app.database.enrollment_data import apply as apply_enrollment
+        enrollment = apply_enrollment(db)                  # fee table and enrollment procedures
         db.commit()
     print(f"Employees added: {emp_added} (already present: {emp_skipped})")
     print(f"Handbook sections added: {hb}")
@@ -332,6 +334,7 @@ def main() -> None:
     print(f"Facilities added: {fac_added} (already present: {fac_skipped})")
     print(f"Enrollment note FAQ added (inactive): {note}")
     print("Campus data (titles, locations, rooms): " + ", ".join(f"{k} {v}" for k, v in campus.items()))
+    print("Enrollment data (fees, procedures): " + ", ".join(f"{k} {v}" for k, v in enrollment.items()))
 
 
 if __name__ == "__main__":

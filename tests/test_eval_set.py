@@ -25,6 +25,8 @@ def db():
         seed.seed_offices(s)
         from app.database.campus_data import apply as apply_campus
         apply_campus(s)
+        from app.database.enrollment_data import apply as apply_enrollment_data
+        apply_enrollment_data(s)
         s.commit()
         rv.clear_index_cache()
         yield s
@@ -117,3 +119,16 @@ def test_location_answers_use_floor_building_room_order(db):
     assert "1st floor, Yellow Building" in t("where is crime lab 1") and "2nd floor, Yellow Building" in t("where is the moot court")
     assert "2nd floor, White Building" in t("where is lr 6")
     assert "Registrar" not in t("what is on the 2nd floor")
+
+
+def test_enrollment_questions_end_to_end(db):
+    from app.database.enrollment_data import apply as apply_enrollment
+    apply_enrollment(db)
+    db.commit()
+    t = lambda q: generate_answer(db, q).text
+    assert "Medical Clearance" in t("what is the procedure for incoming 1st year") and "11." in t("how to enroll as a freshman")
+    assert "Program Chair" in t("enrollment procedure for 2nd sem") and "Solis" in t("paano mag enroll ang incoming first year")
+    assert "₱6,600" in t("how much is the tuition for bscs 1st year 1st sem") and "₱3,600" in t("magkano ang tuition sa bpa 4th year")
+    no_data = generate_answer(db, "how many students in bscs")
+    assert not no_data.found and "Registrar" in no_data.text
+    assert "how many" not in t("how much is the dropping fee").lower() and "200" in t("how much is the dropping fee")

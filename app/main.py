@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.api import enrollment as enrollment_api
 from app.api import admin, answer, auth, chat, documents, employees, facilities, faqs, handbook, health, history, library, offices, positions, quick_links, rooms, search
 from app.core.config import get_settings
 
@@ -42,6 +43,8 @@ def load_campus_data() -> None:
         from app.database.campus_data import apply
         with SessionLocal() as db:
             apply(db)
+            from app.database.enrollment_data import apply as apply_enrollment
+            apply_enrollment(db)
             db.commit()
         from app.services import retrieval
         retrieval.clear_index_cache()
@@ -57,6 +60,9 @@ app.include_router(answer.router)
 app.include_router(chat.router)
 app.include_router(chat.admin_router)
 app.include_router(documents.router)
+for _r in (enrollment_api.fee_router, enrollment_api.fee_admin_router, enrollment_api.count_router,
+           enrollment_api.count_admin_router):
+    app.include_router(_r)
 
 # Each data module gives a public (read-only) router and an admin (write) router.
 for module in (employees, positions, offices, rooms, facilities, handbook, history, faqs, library, quick_links):

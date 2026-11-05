@@ -111,6 +111,7 @@ def build_crud_routers(*, path: str, singular: str, plural: str, model, create_s
             merged = {k: getattr(obj, k) for k in create_schema.model_fields}
             merged.update(changes)
             check(db, merged, record_id)
+            changes = {k: merged[k] for k in changes}           # a check may tidy values (e.g. 'bscs' -> 'BSCS')
         for key, value in changes.items():
             setattr(obj, key, value)
         save(db)

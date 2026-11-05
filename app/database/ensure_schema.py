@@ -16,13 +16,17 @@ ADDED_COLUMNS = [
 
 
 def ensure_schema(engine) -> list[str]:
-    from app.models import QuickLink
+    from app.models import EnrollmentCount, QuickLink, TuitionFee
     changed: list[str] = []
     insp = inspect(engine)
     tables = set(insp.get_table_names())
     if "quick_links" not in tables:
         QuickLink.__table__.create(engine)
         changed.append("created table quick_links")
+    for model in (TuitionFee, EnrollmentCount):
+        if model.__tablename__ not in tables:
+            model.__table__.create(engine)
+            changed.append(f"created table {model.__tablename__}")
     for table, column, sql_type in ADDED_COLUMNS:
         if table not in tables:
             continue

@@ -130,6 +130,15 @@ PHRASES: list[tuple[str, str]] = [
     ("magdala ng", "bring"), ("magdala", "bring"), ("dalhin", "bring"), ("gamitin", "use"), ("gumamit ng", "use"),
     ("magsuot ng", "wear"), ("magsuot", "wear"), ("isuot", "wear"), ("suot", "wear"),
     ("sa klase", "in class"), ("sa loob ng klase", "in class"), ("sa school", "in school"),
+    ("sino ka", "who are you"), ("sino ka ba", "who are you"), ("ano ang kaya mong gawin", "what can you do"),
+    ("ano kaya mong gawin", "what can you do"), ("paano ka gumagana", "how do you work"),
+    ("kailan itinatag ang", "when was established the"), ("kailan itinatag", "when was established"),
+    ("saan matatagpuan ang", "where is located the"), ("anong mga kurso ang inaalok", "what courses are offered"),
+    ("anong kurso ang inaalok", "what courses are offered"), ("mga kurso", "courses"), ("ano ang bisyon", "what is the vision"),
+    ("ano ang misyon", "what is the mission"), ("ano ang mangyayari kung mandaya", "what happens if cheat"),
+    ("kung mandaya ako", "if cheat"), ("pagkakatanggal sa paaralan", "dismissal"),
+    ("paano kinukuwenta ang grado", "how are grades computed"), ("ano ang pasadong grado", "what is the passing grade"),
+    ("sino ang puwedeng tanggapin", "who can be admitted"), ("puwedeng tanggapin", "can be admitted"),
     ("sa campus", "in campus"), ("sa loob ng campus", "in campus"), ("silid aralan", "classroom"),
 ]
 _PHRASE_PATTERNS = [(re.compile(rf"\b{re.escape(k)}\b"), v) for k, v in sorted(PHRASES, key=lambda kv: -len(kv[0]))]
@@ -158,6 +167,10 @@ EXTRA_FILIPINO: dict[str, str] = {
     "tanong": "question", "sagot": "answer", "salamat": "thanks", "magandang": "good", "umaga": "morning",
     "hapon": "afternoon", "gabi": "evening", "paalam": "goodbye", "kumusta": "hello", "kamusta": "hello",
     "tulong": "help", "tulungan": "help", "gawin": "do", "gagawin": "do", "ginagawa": "doing",
+    "bisyon": "vision", "misyon": "mission", "kurso": "course", "inaalok": "offered", "itinatag": "established",
+    "matatagpuan": "located", "kolehiyo": "college", "mandaya": "cheat", "dahilan": "reason", "pagliban": "absences",
+    "pasadong": "passing", "kinukuwenta": "computed", "gumagana": "work", "kaya": "can", "mong": "you", "kong": "i",
+    "itanong": "ask", "ngayon": "today", "panahon": "weather", "pumunta": "go", "nanalo": "won",
     "lahat": "all", "isa": "one", "dalawa": "two", "tatlo": "three",
 }
 

@@ -38,7 +38,8 @@ def enrollment_mode(question: str) -> str | None:
 def enrollment_link_answer(url: str) -> str:
     return (f"You can enroll online through the official PGPC enrollment link:\n{url}\n\n"
             "Open the link to start your enrollment. For the requirements listed in the Student Handbook, "
-            'you can ask me: "What are the requirements for enrollment?"\n\n'
+            'you can ask me: "What are the requirements for enrollment?"\n'
+            'For the step-by-step procedure, ask me: "What is the enrollment procedure for incoming 1st year?"\n\n'
             "Source: PGPC online enrollment")
 
 

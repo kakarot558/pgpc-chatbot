@@ -122,6 +122,20 @@ const MODULES = {
              T("url", "Link (starts with https://)", { required: true, inputType: "url" }),
              TA("message", "Text shown above the link (optional)", { rows: 3 }),
              { name: "is_active", label: "Active", type: "checkbox", default: true }] },
+  "enrollment-counts": { label: "Student counts", singular: "student count", group: "Enrollment",
+    columns: [["Program", (r) => r.program || "All programs"], ["Year level", (r) => r.year_level || "All years"],
+              ["Students", "students"], ["As of", "as_of"], ["Note", "note"]],
+    fields: [T("program", "Program (BSCS, BSCRIM, BPA, BSMA; empty = whole school)"),
+             T("year_level", "Year level (1-4; empty = all years)", { number: true, inputType: "number" }),
+             T("students", "Number of enrolled students", { required: true, number: true, inputType: "number" }),
+             T("as_of", "As of (e.g. 1st Semester A.Y. 2026-2027)"), TA("note", "Note", { rows: 2 })] },
+  "tuition-fees": { label: "Tuition fees", singular: "tuition fee", group: "Enrollment",
+    columns: [["Program", "program"], ["Year", "year_level"], ["Sem", "semester"], ["Residency", "residency"],
+              ["A.Y.", "academic_year"], ["Amount (PHP)", "amount"]],
+    fields: [T("program", "Program", { required: true }), T("year_level", "Year level", { required: true, number: true, inputType: "number" }),
+             T("semester", "Semester (1 or 2)", { required: true, number: true, inputType: "number" }),
+             T("residency", "Residency (Garciano or Non-Garciano)", { required: true }), T("academic_year", "Academic year"),
+             T("amount", "Amount (PHP)", { required: true, number: true, inputType: "number" })] },
   library: { label: "Library", singular: "library book", group: "Knowledge",
     columns: [["Title", "title"], ["Author", "author"], ["ISBN", "isbn"], ["Category", "category"],
               ["Availability", "availability"]],
@@ -190,6 +204,7 @@ async function openForm(key, record, onSaved, prefill) {
       const i = inputs[f.name];
       if (f.type === "checkbox") payload[f.name] = i.checked;
       else if (f.type === "select") payload[f.name] = i.value ? Number(i.value) : null;
+      else if (f.number) payload[f.name] = i.value === "" ? null : Number(i.value);
       else payload[f.name] = i.value;
     }
     save.disabled = true;

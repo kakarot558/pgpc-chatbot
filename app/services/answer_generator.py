@@ -706,6 +706,27 @@ _HONORIFICS = {"dr", "mr", "mrs", "ms", "atty", "attorney", "engr", "sir", "maam
 _ASK_PREFIX = re.compile(r"^(?:who is|who s|whos|who are|sino si|sino po si|sino|tell me about|info on|information about|about|details of|details about|show me|find)\s+")
 
 
+def _enrollment_lookup(db: Session, english: str):
+    """Enrollment procedures, tuition fees and student counts. (text, found, sources) or None."""
+    from app.services import enrollment_info as ei
+    try:
+        kind = ei.procedure_kind(english)
+        if kind:
+            new, sem2 = ei.load_procedures(db)
+            link = (get_settings().enrollment_url or "").strip() or None
+            text = ei.procedure_text("sem2" if kind == "sem2" else "new", new, sem2, link)
+            return text, True, [{"type": "faq", "id": None, "title": "Enrollment procedure", "source": ei.PROCEDURE_SOURCE}]
+        if ei.is_count_question(english):
+            text, found = ei.count_text(ei.load_count_rows(db), english)
+            return text, found, [{"type": "faq", "id": None, "title": "Enrollment counts", "source": ei.COUNT_SOURCE}]
+        if ei.is_fee_question(english):
+            text, found = ei.fee_text(ei.load_fee_rows(db), english)
+            return text, found, [{"type": "faq", "id": None, "title": "Tuition fees", "source": ei.FEE_SOURCE}]
+    except Exception:                                    # a bonus feature: never let it break an answer
+        logging.getLogger("pgpc.answer").exception("enrollment answer failed")
+    return None
+
+
 def _name_lookup(db: Session, q: str):
     """'solis', 'dr vinas', 'who is diaz': a bare person name. One match gives the person's title and office; several
     matches (two Diaz, two Abu) are listed with their titles so the student can pick."""
@@ -951,7 +972,10 @@ def _answer_one(db: Session, question: str, classifier, top_k: int) -> "Answer":
     from app.services import quick_links
     enroll_url = (get_settings().enrollment_url or "").strip()
     enroll_mode = quick_links.enrollment_mode(english) if enroll_url and intent.intent not in PEOPLE_SKIP_INTENTS else None
-    if enroll_mode == "how":
+    if (enr := _enrollment_lookup(db, english)) is not None and intent.intent not in PEOPLE_SKIP_INTENTS:
+        answer = Answer(text=enr[0], kind="answer", intent="enrollment_info", intent_confidence=float(intent.confidence),
+                        found=enr[1], confidence="high" if enr[1] else "none", pgpc_related=True, sources=enr[2])
+    elif enroll_mode == "how":
         answer = Answer(text=quick_links.enrollment_link_answer(enroll_url), kind="answer", intent="enrollment_info",
                         intent_confidence=float(intent.confidence), found=True, confidence="high", pgpc_related=True,
                         sources=[{"type": "link", "id": None, "title": "PGPC online enrollment",

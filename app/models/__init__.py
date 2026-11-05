@@ -3,6 +3,7 @@ from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.document import Document
 from app.models.employee import Employee
+from app.models.enrollment import EnrollmentCount, TuitionFee
 from app.models.facility import Facility
 from app.models.faq import FAQ
 from app.models.handbook import HandbookSection
@@ -16,7 +17,7 @@ from app.models.room import Room
 from app.models.user import User
 
 __all__ = [
-    "ChatMessage", "ChatSession", "Document", "Employee", "Facility", "FAQ",
+    "ChatMessage", "ChatSession", "Document", "Employee", "EnrollmentCount", "Facility", "FAQ", "TuitionFee",
     "HandbookSection", "SchoolHistory", "KnowledgeChunk", "LibraryBook",
     "Office", "Position", "QuickLink", "Room", "User",
 ]
