@@ -79,3 +79,13 @@ def test_apply_migrates_an_older_database():
         assert db.scalar(select(Room).where(Room.room_number == "CR (Building 2)")) is None
         before = campus_data.apply(db)
         assert before["rooms"] == 0 and before["rooms_moved"] == 0          # running it again changes nothing
+
+
+def test_new_building_from_new_building_sheet():
+    nb = [r for r in campus_data.ROOMS if r[2] == campus_data.NEW]
+    assert len(nb) == 14                                                  # library, clinic, 3 floors x 4 lecture rooms
+    floors = {(r[1], r[3]) for r in nb}
+    assert ("Library", "1st floor") in floors and ("Clinic", "1st floor") in floors
+    for fl in ("2nd floor", "3rd floor", "4th floor"):
+        assert sum(1 for r in nb if r[3] == fl and r[1].startswith("Lecture Room")) == 4
+    assert len({(r[0], r[2]) for r in nb}) == 14                          # codes are unique within the building

@@ -72,6 +72,11 @@ def squeeze_floods(text: str) -> str:
     return re.sub(r"([?!.,])\1+", r"\1", text)
 
 
+_COUNTED_BEFORE = {"room", "rooms", "lr", "lab", "laboratory", "floor", "year", "yr", "grade", "no", "number", "lecture", "comlab",
+                   "section", "bldg", "building", "sem", "semester", "level", "storage", "cr", "pwd"}
+_COUNTED_AFTER = {"floor", "year", "yr", "sem", "semester", "nd", "th", "st", "rd", "students", "student"}
+
+
 def expand_slang(words: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
     out, changes = [], []
     n = len(words)
@@ -84,7 +89,9 @@ def expand_slang(words: list[str]) -> tuple[list[str], list[tuple[str, str]]]:
             if w == "y":
                 rep = CONTEXT_SLANG[w] if i == 0 and after else None           # "y is the clinic closed"
             elif w in {"4", "2"}:
-                rep = CONTEXT_SLANG[w] if before and after else None           # "penalty 4 cheating"
+                counted = (words[i - 1] in _COUNTED_BEFORE) if before else False   # "lecture room 2", "lr 4", "year 2"
+                counted = counted or (after and words[i + 1] in _COUNTED_AFTER)    # "2 floor", "4 year"
+                rep = CONTEXT_SLANG[w] if before and after and not counted else None   # "penalty 4 cheating"
             elif w == "k":
                 rep = None
             elif after or w in {"u"}:

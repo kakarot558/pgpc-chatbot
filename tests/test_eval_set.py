@@ -132,3 +132,17 @@ def test_enrollment_questions_end_to_end(db):
     no_data = generate_answer(db, "how many students in bscs")
     assert not no_data.found and "Registrar" in no_data.text
     assert "how many" not in t("how much is the dropping fee").lower() and "200" in t("how much is the dropping fee")
+
+
+def test_new_building_locations(db):
+    t = lambda q: generate_answer(db, q).text
+    assert "located at: 1st floor, New Building" in t("where is the library")
+    assert "located at: 1st floor, New Building" in t("where is the clinic")
+    assert "Librarian" in t("where is the librarian")                      # the person is still answered as a person
+    many = t("where is lecture room 1")
+    assert "more than one" in many and "4th floor, New Building" in many and "1st floor, White Building" in many
+    assert "located at: 4th floor, New Building" in t("where is lecture room 3 4th floor")
+    assert "located at: 2nd floor, New Building" in t("where is lecture room 4 2nd floor new building")
+    assert "located at: 1st floor, White Building" in t("where is lecture room 1 white building")
+    assert "Lecture Room 4 (4th floor)" in t("what rooms are in the new building")
+    assert "New Building" in t("what is on the 3rd floor") and "Lecture Room 2" in t("what is on the 4th floor")

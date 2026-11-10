@@ -109,6 +109,8 @@ def room_label(number, name=None) -> str:
     number, name = str(number or "").strip(), str(name or "").strip()
     if number and re.fullmatch(r"\d+[A-Za-z]?", number):
         return f"Room {number}" + (f" ({name})" if name else "")
+    if number.startswith("NB LR "):                      # New Building codes carry the floor; the name already says all
+        return name or number
     if name and number and name.lower() != number.lower():
         return f"{name} ({number})"
     return name or number
@@ -675,7 +677,8 @@ def _compact(text: str) -> str:
 
 
 _FLOOR_WORDS = {"ground": "1st floor", "1st": "1st floor", "first": "1st floor", "1": "1st floor",
-                "2nd": "2nd floor", "second": "2nd floor", "2": "2nd floor"}
+                "2nd": "2nd floor", "second": "2nd floor", "2": "2nd floor",
+                "3rd": "3rd floor", "third": "3rd floor", "3": "3rd floor", "4th": "4th floor", "fourth": "4th floor", "4": "4th floor"}
 _LOCATION_TRIGGERS = {"where", "find", "located", "location", "saan", "nasaan", "locate"}
 _NAME_STOP = {"where", "is", "are", "the", "of", "can", "i", "find", "located", "location", "office", "room", "mr", "mrs",
               "ms", "dr", "atty", "sir", "maam", "ma", "am", "a", "an", "at", "in", "for", "to", "pgpc", "college", "does",
@@ -827,7 +830,7 @@ def _campus_people_lookup(db: Session, english: str):
     if len(named) == 1:
         held = named
     elif not named:
-        if words & {"office", "cashier", "accounting", "admission", "clinic", "osa", "csg", "mis"}:
+        if words & {"office", "cashier", "accounting", "admission", "clinic", "library", "osa", "csg", "mis"}:
             return None                                  # "where is the registrar office" is an office question
         rest = " ".join(w for w in q.split() if w not in _LOCATION_TRIGGERS and w not in {"is", "are", "can", "i", "what", "floor", "does", "work", "works"})
         pq = people.parse_role_question("who is " + rest)
@@ -907,6 +910,23 @@ def _campus_lookup(db: Session, english: str):
                 best, best_len = [r], len(c)
             elif len(c) == best_len and r not in best:
                 best.append(r)
+    if best and all((r.room_type or "") in {"Library", "Clinic"} for r in best) and not (
+            words & {"where", "located", "location", "find", "locate", "saan", "nasaan", "floor", "building", "directions", "way"}):
+        return None                                      # "what are the library rules" is not a location question
+    if len(best) > 1:                                    # "lecture room 1" exists in more than one place
+        wanted_b = [r for r in best if r.building and _compact(r.building) in qc]
+        if wanted_b:
+            best = wanted_b
+        fl = {_FLOOR_WORDS[w] for w in q.split() if w in _FLOOR_WORDS and w not in {"1", "2", "3", "4"}}
+        wanted_f = [r for r in best if r.floor in fl]
+        if wanted_f:
+            best = wanted_f
+        if len(best) > 1 and len({(r.building, r.floor) for r in best}) == len(best):
+            lines = [f"There is more than one {best[0].room_name or best[0].room_number}. They are at:"]
+            for r in sorted(best, key=lambda r: (r.building or "", r.floor or "")):
+                lines.append(f"- {_join_location(r.building, r.floor, r.room_name or r.room_number)}")
+            lines.append("Tell me the building or floor (for example, \u201C" + (best[0].room_name or "") + " 3rd floor New Building\u201D) if you want just one.")
+            return "\n".join(lines) + "\n\nSource: PGPC room records", True
     if len(best) == 1:
         r = best[0]
         f = {"room_number": r.room_number, "room_name": r.room_name, "building": r.building, "floor": r.floor,
@@ -955,6 +975,12 @@ def _admin_link(db: Session, question: str, intent):
         return None
 
 
+_FOREIGN_LEADER = re.compile(
+    r"\b(?:president|prime minister|governor|mayor|senator|king|queen|leader|ceo|head)\s+(?:of|in)\s+(?:the\s+)?"
+    r"(?:united states|usa|us|u s a|america|philippines|japan|korea|china|russia|india|uk|britain|england|france|germany|"
+    r"canada|australia|batangas|manila|lipa|world)\b")
+
+
 def _answer_one(db: Session, question: str, classifier, top_k: int) -> "Answer":
     from app.services.input_reader import get_vocabulary, read_input
     from app.services.query_rewrite import is_overview
@@ -969,6 +995,9 @@ def _answer_one(db: Session, question: str, classifier, top_k: int) -> "Answer":
         if overview is not None:
             return overview
     intent = classifier.predict(english)
+    if _FOREIGN_LEADER.search(normalize_text(english)) and intent.intent != "out_of_scope":
+        import dataclasses
+        intent = dataclasses.replace(intent, intent="out_of_scope")      # "president of the united states": never a PGPC question
     from app.services import quick_links
     enroll_url = (get_settings().enrollment_url or "").strip()
     enroll_mode = quick_links.enrollment_mode(english) if enroll_url and intent.intent not in PEOPLE_SKIP_INTENTS else None

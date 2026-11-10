@@ -25,6 +25,9 @@ MAIN = "White Building"
 BLDG2 = "Yellow Building"
 GROUND = "1st floor"
 SECOND = "2nd floor"
+THIRD = "3rd floor"
+FOURTH = "4th floor"
+NEW = "New Building"        # from New_Building.xlsx: library, clinic and 12 lecture rooms
 # Names and floor wording an earlier version of this data used; stored records are renamed to the new ones.
 OLD_BUILDINGS = {"Main Building": MAIN, "Building 2": BLDG2}
 OLD_FLOORS = {"Ground floor": GROUND}
@@ -171,6 +174,20 @@ ROOMS = [
     ("Public CR (2nd floor)", "Public comfort room, 2nd floor", BLDG2, SECOND, "Comfort room"),
     ("Storage (Yellow 1)", "Storage room, Yellow Building 1", BLDG2, SECOND, "Storage"),
     ("Storage (Yellow 2)", "Storage room, Yellow Building 2", BLDG2, SECOND, "Storage"),
+    # New Building (from New_Building.xlsx). The same lecture-room name repeats on every floor, so each code names its floor.
+    ("Library", "Library", NEW, GROUND, "Library"), ("Clinic", "Clinic", NEW, GROUND, "Clinic"),
+    ("NB LR 1 (2nd floor)", "Lecture Room 1", NEW, SECOND, "Lecture room"),
+    ("NB LR 2 (2nd floor)", "Lecture Room 2", NEW, SECOND, "Lecture room"),
+    ("NB LR 3 (2nd floor)", "Lecture Room 3", NEW, SECOND, "Lecture room"),
+    ("NB LR 4 (2nd floor)", "Lecture Room 4", NEW, SECOND, "Lecture room"),
+    ("NB LR 1 (3rd floor)", "Lecture Room 1", NEW, THIRD, "Lecture room"),
+    ("NB LR 2 (3rd floor)", "Lecture Room 2", NEW, THIRD, "Lecture room"),
+    ("NB LR 3 (3rd floor)", "Lecture Room 3", NEW, THIRD, "Lecture room"),
+    ("NB LR 4 (3rd floor)", "Lecture Room 4", NEW, THIRD, "Lecture room"),
+    ("NB LR 1 (4th floor)", "Lecture Room 1", NEW, FOURTH, "Lecture room"),
+    ("NB LR 2 (4th floor)", "Lecture Room 2", NEW, FOURTH, "Lecture room"),
+    ("NB LR 3 (4th floor)", "Lecture Room 3", NEW, FOURTH, "Lecture room"),
+    ("NB LR 4 (4th floor)", "Lecture Room 4", NEW, FOURTH, "Lecture room"),
 ]
 
 

@@ -122,6 +122,12 @@ const MODULES = {
              T("url", "Link (starts with https://)", { required: true, inputType: "url" }),
              TA("message", "Text shown above the link (optional)", { rows: 3 }),
              { name: "is_active", label: "Active", type: "checkbox", default: true }] },
+  library: { label: "Library", singular: "library book", group: "Knowledge",
+    columns: [["Title", "title"], ["Author", "author"], ["ISBN", "isbn"], ["Category", "category"],
+              ["Availability", "availability"]],
+    fields: [T("title", "Title", { required: true }), T("author", "Author"), T("isbn", "ISBN"),
+             T("category", "Category"), T("publisher", "Publisher"), T("year", "Year"),
+             T("availability", "Availability"), T("location", "Shelf / location")] },
   "enrollment-counts": { label: "Student counts", singular: "student count", group: "Enrollment",
     columns: [["Program", (r) => r.program || "All programs"], ["Year level", (r) => r.year_level || "All years"],
               ["Students", "students"], ["As of", "as_of"], ["Note", "note"]],
@@ -135,13 +141,7 @@ const MODULES = {
     fields: [T("program", "Program", { required: true }), T("year_level", "Year level", { required: true, number: true, inputType: "number" }),
              T("semester", "Semester (1 or 2)", { required: true, number: true, inputType: "number" }),
              T("residency", "Residency (Garciano or Non-Garciano)", { required: true }), T("academic_year", "Academic year"),
-             T("amount", "Amount (PHP)", { required: true, number: true, inputType: "number" })] },
-  library: { label: "Library", singular: "library book", group: "Knowledge",
-    columns: [["Title", "title"], ["Author", "author"], ["ISBN", "isbn"], ["Category", "category"],
-              ["Availability", "availability"]],
-    fields: [T("title", "Title", { required: true }), T("author", "Author"), T("isbn", "ISBN"),
-             T("category", "Category"), T("publisher", "Publisher"), T("year", "Year"),
-             T("availability", "Availability"), T("location", "Shelf / location")] },
+             T("amount", "Amount (PHP)", { required: true, number: true, inputType: "number" })] }
 };
 
 // ----------------------------------------------------------------------------- generic table + form
